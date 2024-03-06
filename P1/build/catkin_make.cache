@@ -1,0 +1,2 @@
+get_pointclouds:load_model:mapper:send_velocity_commands:turtlebot3/turtlebot3:turtlebot3/turtlebot3_bringup:turtlebot3/turtlebot3_description:turtlebot3/turtlebot3_example:turtlebot3/turtlebot3_navigation:turtlebot3/turtlebot3_slam:turtlebot3/turtlebot3_teleop:turtlebot3_msgs:turtlebot3_simulations/turtlebot3_fake:turtlebot3_simulations/turtlebot3_gazebo:turtlebot3_simulations/turtlebot3_simulations:turtlebot_gazebo_multiple
+-DCATKIN_DEVEL_PREFIX=/home/alu/Escritorio/VAR/P1/devel -DCMAKE_INSTALL_PREFIX=/home/alu/Escritorio/VAR/P1/install -G Unix Makefiles

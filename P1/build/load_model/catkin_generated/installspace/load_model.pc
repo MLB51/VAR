@@ -1,0 +1,8 @@
+prefix=/home/alu/Escritorio/VAR/P1/install
+
+Name: load_model
+Description: Description of load_model
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

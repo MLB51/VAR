@@ -1,0 +1,8 @@
+prefix=/home/alu/Escritorio/VAR/P1/install
+
+Name: get_pointclouds
+Description: Description of get_pointclouds
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
