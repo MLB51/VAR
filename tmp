@@ -1,0 +1,25 @@
+
+// Initialize the registration object
+pcl::Registration<PointT, PointT>::Ptr registration(new pcl::Registration<PointT, PointT>);
+
+// Estimate correspondences between keypoints based on descriptors
+pcl::registration::CorrespondenceEstimation<PointT, PointT>::Ptr correspondence_estimation(new pcl::registration::CorrespondenceEstimation<PointT, PointT>);
+correspondence_estimation->setInputSource(keypoints_source);
+correspondence_estimation->setInputTarget(keypoints_target);
+correspondence_estimation->setInputCorrespondences(descriptors_source, descriptors_target);
+
+// Apply RANSAC to estimate the transformation
+pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>::Ptr ransac(new pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>);
+ransac->setInputSource(keypoints_source);
+ransac->setInputTarget(keypoints_target);
+ransac->setInlierThreshold(0.05); // Adjust this threshold based on your application
+ransac->setMaximumIterations(1000); // Adjust maximum iterations as needed
+ransac->setInputCorrespondences(correspondence_estimation->getCorrespondences());
+ransac->setInputTransformation(registration->getInputTransformation());
+
+// Perform registration
+pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transformation_estimation(new pcl::registration::TransformationEstimation<PointT, PointT>);
+transformation_estimation->estimateRigidTransformation(*keypoints_source, *keypoints_target, *ransac->getInliers(), registration->getTransformation());
+
+// Get the final transformation
+Eigen::Matrix4f final_transformation = registration->getTransformation();
