@@ -1,4 +1,3 @@
-
 #include <ros/ros.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/io/pcd_io.h>
@@ -7,12 +6,16 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/filters/voxel_grid.h>
 
-
+#include <pcl/registration/sample_consensus_prerejective.h>
 
 #include <pcl/keypoints/harris_3d.h>
-#include <pcl/features/normal_3d.h>  // Include normal estimation header
+#include <pcl/features/normal_3d.h> 
 #include <pcl/features/fpfh.h>
 
+#include <pcl/registration/registration.h>
+#include <pcl/registration/correspondence_estimation.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
+#include <pcl/registration/ia_ransac.h> // Include the RANSAC-based registration class
 
 #include <boost/thread/thread.hpp>
 #include <boost/foreach.hpp>
@@ -87,35 +90,30 @@ void extractKeypoints(
     fpfh.compute(*descriptors);
 }
 
+// source = actual, target = previous
 Eigen::Matrix4f pairKeypoints(
-        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
-        pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors,
-        pcl::PointCloud<pcl::PointXYZI>::Ptr previous_keypoints,
-        pcl::PointCloud<pcl::FPFHSignature33>::Ptr previous_descriptors
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_source,
+        pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors_source,
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_target,
+        pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors_target
     ){
-    pcl::Registration<PointT, PointT>::Ptr registration(new pcl::Registration<PointT, PointT>);
+    pcl::SampleConsensusPrerejective<pcl::PointXYZI, pcl::PointXYZI, pcl::FPFHSignature33> align;
 
-    // Estimate correspondences between keypoints based on descriptors
-    pcl::registration::CorrespondenceEstimation<PointT, PointT>::Ptr correspondence_estimation(new pcl::registration::CorrespondenceEstimation<PointT, PointT>);
-    correspondence_estimation->setInputSource(keypoints);
-    correspondence_estimation->setInputTarget(previous_keypoints);
-    correspondence_estimation->setInputCorrespondences(descriptors, previous_descriptors);
+    align.setInputSource(keypoints_source);
+    align.setSourceFeatures(descriptors_source);
+    align.setInputTarget(keypoints_target);
+    align.setTargetFeatures(descriptors_target);
 
-    // Apply RANSAC to estimate the transformation
-    pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>::Ptr ransac(new pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>);
-    ransac->setInputSource(keypoints);
-    ransac->setInputTarget(previous_keypoints);
-    ransac->setInlierThreshold(0.05); // Adjust this threshold based on your application
-    ransac->setMaximumIterations(1000); // Adjust maximum iterations as needed
-    ransac->setInputCorrespondences(correspondence_estimation->getCorrespondences());
-    ransac->setInputTransformation(registration->getInputTransformation());
+    pcl::PointCloud<pcl::PointXYZI>::Ptr aligned(new pcl::PointCloud<pcl::PointXYZI>);
+    align.align(*aligned);
 
-    // Perform registration
-    pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transformation_estimation(new pcl::registration::TransformationEstimation<PointT, PointT>);
-    transformation_estimation->estimateRigidTransformation(*keypoints, *previous_keypoints, *ransac->getInliers(), registration->getTransformation());
-
-    // Get the final transformation
-    return registration->getTransformation();
+    if (align.hasConverged()) {
+        Eigen::Matrix4f transformation = align.getFinalTransformation();
+        return transformation;
+    } else {
+        // Alignment failed
+        return Eigen::Matrix4f::Identity();
+    }
 }
 
 void pc2map(std::string path){
@@ -123,7 +121,7 @@ void pc2map(std::string path){
     pcl::PointCloud<pcl::PointXYZI>::Ptr previous_kps(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr previous_dscs(new pcl::PointCloud<pcl::FPFHSignature33>);
     
-    Eigen::Matrix3d total_transformation = Eigen::Matrix3d::Identity();
+    Eigen::Matrix4f total_transformation = Eigen::Matrix4f::Identity();
     
     pcl::PointCloud<pcl::PointXYZ>::Ptr map(new pcl::PointCloud<pcl::PointXYZ>);
     
@@ -142,7 +140,7 @@ void pc2map(std::string path){
 
 
         if (pcl::io::loadPCDFile<pcl::PointXYZ> (entry.string(), *cloud) == -1){
-            PCL_ERROR ("Couldn't read file "+entry.string()+"\n");
+            std::cerr << "Couldn't read file " << entry.string() << std::endl;
             return;
         }
 
@@ -152,8 +150,8 @@ void pc2map(std::string path){
         pcl::PointCloud<pcl::PointXYZI>::Ptr kps(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<pcl::FPFHSignature33>::Ptr dscs(new pcl::PointCloud<pcl::FPFHSignature33>);
         extractKeypoints(cloud, kps, dscs);
-        std::cout << "Number of keypoints: " << keypoints->size() << std::endl;
-        std::cout << "Number of descriptors: " << descriptors->size() << std::endl;
+        std::cout << "Number of keypoints: " << kps->size() << std::endl;
+        std::cout << "Number of descriptors: " << dscs->size() << std::endl;
 
         if(i>0){
             std::cout << "Pairing... " << std::endl;
@@ -166,7 +164,7 @@ void pc2map(std::string path){
             pcl::transformPointCloud(*cloud, *cloud_transformed, total_transformation);
 
             // the transformed cloud is added to the map
-            *map += cloud_transformed; 
+            *map = *map + *cloud_transformed; 
             
         }else{
 
