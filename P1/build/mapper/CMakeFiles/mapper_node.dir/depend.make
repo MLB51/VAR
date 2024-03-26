@@ -308,6 +308,7 @@ mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/Po
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/TextureMesh.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/Vertices.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/cloud_iterator.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/angles.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/centroid.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/colors.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/common.h
@@ -315,7 +316,9 @@ mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/co
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/copy_point.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/distances.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/eigen.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/geometry.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/accumulators.hpp
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/angles.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/centroid.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/common.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/impl/copy_point.hpp
@@ -329,12 +332,19 @@ mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/co
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/projection_matrix.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/time.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/transforms.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/common/utils.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/console/print.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/conversions.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/correspondence.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/exceptions.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/3dsc.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/boost.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/boundary.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/eigen.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/feature.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/fpfh.h
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/impl/3dsc.hpp
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/impl/boundary.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/impl/feature.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/impl/fpfh.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/features/impl/integral_image2D.hpp
@@ -372,7 +382,9 @@ mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/kd
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/kdtree/kdtree_flann.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/harris_3d.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/impl/harris_3d.hpp
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/impl/iss_3d.hpp
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/impl/keypoint.hpp
+mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/iss_3d.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/keypoints/keypoint.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/make_shared.h
 mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o: /usr/include/pcl-1.10/pcl/octree/impl/octree_base.hpp

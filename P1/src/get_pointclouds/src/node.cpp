@@ -15,7 +15,7 @@ void simpleVis ()
 	while(!viewer.wasStopped())
 	{
 		viewer.showCloud (visu_pc);
-		boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+		boost::this_thread::sleep(boost::posix_time::milliseconds(500));
 		
 	}
 
@@ -36,7 +36,10 @@ void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg){
 	
 	visu_pc = cloud_filtered;
 	if(visu_pc->size() > 0){
-		std::string filename = "/home/alu/Escritorio/VAR/P1/point_data/cloud_"+std::to_string(cloud_counter++)+".pcd";
+		std::string iter_string = std::to_string(cloud_counter++);
+		if (iter_string.size() < 2) {iter_string = "0" + iter_string;}
+
+		std::string filename = "/home/alu/Escritorio/VAR/P1/point_data/cloud_"+iter_string+".pcd";
 		pcl::io::savePCDFileASCII(filename, *cloud_filtered);
 	}
 }

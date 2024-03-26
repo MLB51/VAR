@@ -7,6 +7,8 @@
 #IncludeRegexTransform: 
 
 /home/alu/Escritorio/VAR/P1/src/mapper/src/mapper.cpp
+iostream
+-
 ros/ros.h
 -
 pcl_ros/point_cloud.h
@@ -21,13 +23,19 @@ pcl/visualization/cloud_viewer.h
 -
 pcl/filters/voxel_grid.h
 -
-pcl/registration/sample_consensus_prerejective.h
+pcl/search/kdtree.h
 -
 pcl/keypoints/harris_3d.h
+-
+pcl/keypoints/iss_3d.h
 -
 pcl/features/normal_3d.h
 -
 pcl/features/fpfh.h
+-
+pcl/features/3dsc.h
+-
+pcl/registration/sample_consensus_prerejective.h
 -
 pcl/registration/registration.h
 -
@@ -42,8 +50,6 @@ boost/thread/thread.hpp
 boost/foreach.hpp
 -
 boost/filesystem.hpp
--
-iostream
 -
 algorithm
 -
@@ -2196,6 +2202,10 @@ pcl/correspondence.h
 pcl/impl/cloud_iterator.hpp
 -
 
+/usr/include/pcl-1.10/pcl/common/angles.h
+pcl/common/impl/angles.hpp
+-
+
 /usr/include/pcl-1.10/pcl/common/centroid.h
 pcl/pcl_macros.h
 -
@@ -2266,6 +2276,12 @@ Eigen/Eigenvalues
 pcl/common/impl/eigen.hpp
 -
 
+/usr/include/pcl-1.10/pcl/common/geometry.h
+Eigen/Core
+-
+pcl/console/print.h
+-
+
 /usr/include/pcl-1.10/pcl/common/impl/accumulators.hpp
 map
 -
@@ -2282,6 +2298,12 @@ boost/fusion/include/filter_if.hpp
 pcl/pcl_macros.h
 -
 pcl/point_types.h
+-
+
+/usr/include/pcl-1.10/pcl/common/impl/angles.hpp
+cmath
+-
+pcl/pcl_macros.h
 -
 
 /usr/include/pcl-1.10/pcl/common/impl/centroid.hpp
@@ -2394,6 +2416,10 @@ pcl/PointIndices.h
 pcl/common/impl/transforms.hpp
 -
 
+/usr/include/pcl-1.10/pcl/common/utils.h
+limits
+-
+
 /usr/include/pcl-1.10/pcl/console/print.h
 cstdio
 -
@@ -2446,6 +2472,36 @@ pcl/pcl_macros.h
 boost/current_function.hpp
 -
 
+/usr/include/pcl-1.10/pcl/features/3dsc.h
+random
+-
+pcl/point_types.h
+-
+pcl/features/boost.h
+-
+pcl/features/feature.h
+-
+pcl/features/impl/3dsc.hpp
+-
+
+/usr/include/pcl-1.10/pcl/features/boost.h
+boost/property_map/property_map.hpp
+-
+
+/usr/include/pcl-1.10/pcl/features/boundary.h
+pcl/features/eigen.h
+-
+pcl/features/feature.h
+-
+pcl/features/impl/boundary.hpp
+-
+
+/usr/include/pcl-1.10/pcl/features/eigen.h
+Eigen/StdVector
+-
+Eigen/Geometry
+-
+
 /usr/include/pcl-1.10/pcl/features/feature.h
 pcl/pcl_base.h
 -
@@ -2464,6 +2520,24 @@ pcl/features/feature.h
 set
 -
 pcl/features/impl/fpfh.hpp
+-
+
+/usr/include/pcl-1.10/pcl/features/impl/3dsc.hpp
+cmath
+-
+pcl/features/3dsc.h
+-
+pcl/common/utils.h
+-
+pcl/common/geometry.h
+-
+pcl/common/angles.h
+-
+
+/usr/include/pcl-1.10/pcl/features/impl/boundary.hpp
+pcl/features/boundary.h
+-
+cfloat
 -
 
 /usr/include/pcl-1.10/pcl/features/impl/feature.hpp
@@ -2866,7 +2940,23 @@ pcl/common/centroid.h
 xmmintrin.h
 -
 
+/usr/include/pcl-1.10/pcl/keypoints/impl/iss_3d.hpp
+pcl/features/boundary.h
+-
+pcl/features/normal_3d.h
+-
+pcl/features/integral_image_normal.h
+-
+pcl/keypoints/iss_3d.h
+-
+
 /usr/include/pcl-1.10/pcl/keypoints/impl/keypoint.hpp
+
+/usr/include/pcl-1.10/pcl/keypoints/iss_3d.h
+pcl/keypoints/keypoint.h
+-
+pcl/keypoints/impl/iss_3d.hpp
+-
 
 /usr/include/pcl-1.10/pcl/keypoints/keypoint.h
 pcl/pcl_base.h

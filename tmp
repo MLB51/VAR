@@ -1,25 +1,33 @@
+void extractKeypoints_harris_and_3dsc(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors
+    ) {
+    // Compute normals
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    ne.setInputCloud(cloud);
+    ne.setRadiusSearch(0.1); // Adjust as needed
+    ne.compute(*normals);
 
-// Initialize the registration object
-pcl::Registration<PointT, PointT>::Ptr registration(new pcl::Registration<PointT, PointT>);
+    // Harris Keypoint Detection
+    pcl::HarrisKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> harris;
+    harris.setInputCloud(cloud);
+    harris.setNormals(normals);
+    harris.setNonMaxSupression(true); // pasar a TRUE si se encuentran demasiados
+    harris.setRadius(0.1); // default 0.1, determina el tamaño de los descriptores
+    harris.setThreshold(0.01); // default 0.01, menor thr == mas kps
+    harris.compute(*keypoints);
 
-// Estimate correspondences between keypoints based on descriptors
-pcl::registration::CorrespondenceEstimation<PointT, PointT>::Ptr correspondence_estimation(new pcl::registration::CorrespondenceEstimation<PointT, PointT>);
-correspondence_estimation->setInputSource(keypoints_source);
-correspondence_estimation->setInputTarget(keypoints_target);
-correspondence_estimation->setInputCorrespondences(descriptors_source, descriptors_target);
+    // 3DSC Descriptor computation
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ShapeContext3DEstimation<pcl::PointXYZ, pcl::Normal, pcl::ShapeContext1980> sc3d;
+    sc3d.setInputCloud(cloud);
+    sc3d.setInputNormals(normals);
+    sc3d.setSearchMethod(tree);
+    sc3d.setRadiusSearch(0.1); // Adjust as needed
+    sc3d.compute(*descriptors);
+}
 
-// Apply RANSAC to estimate the transformation
-pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>::Ptr ransac(new pcl::registration::CorrespondenceRejectorSampleConsensus<PointT>);
-ransac->setInputSource(keypoints_source);
-ransac->setInputTarget(keypoints_target);
-ransac->setInlierThreshold(0.05); // Adjust this threshold based on your application
-ransac->setMaximumIterations(1000); // Adjust maximum iterations as needed
-ransac->setInputCorrespondences(correspondence_estimation->getCorrespondences());
-ransac->setInputTransformation(registration->getInputTransformation());
-
-// Perform registration
-pcl::registration::TransformationEstimation<PointT, PointT>::Ptr transformation_estimation(new pcl::registration::TransformationEstimation<PointT, PointT>);
-transformation_estimation->estimateRigidTransformation(*keypoints_source, *keypoints_target, *ransac->getInliers(), registration->getTransformation());
-
-// Get the final transformation
-Eigen::Matrix4f final_transformation = registration->getTransformation();
+void (*)(pcl::PointCloud<pcl::PointXYZ>::Ptr, pcl::PointCloud<pcl::PointXYZI>::Ptr, pcl::PointCloud<pcl::ShapeContext1980>::Ptr
+void (*)(boost::shared_ptr<pcl::PointCloud<pcl::PointXYZ> >, boost::shared_ptr<pcl::PointCloud<pcl::PointXYZI> >, boost::shared_ptr<pcl::PointCloud<pcl::ShapeContext1980> >)

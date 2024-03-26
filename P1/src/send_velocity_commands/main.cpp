@@ -41,11 +41,15 @@ class RobotDriver{
                 base_cmd.linear.x = -0.25;
             }else if(cmd[0]=='a'){
                 //turn left (yaw) in the same place
-                base_cmd.angular.z = 0.5;
+                base_cmd.angular.z = 0.25;
                 base_cmd.linear.x = 0.0;
             }else if(cmd[0]=='d'){
                 //turn right (yaw) in the same place
-                base_cmd.angular.z = -0.5;
+                base_cmd.angular.z = -0.25;
+                base_cmd.linear.x = 0.0;
+            }else if(cmd[0]=='e'){
+                // stop
+                base_cmd.angular.z = 0;
                 base_cmd.linear.x = 0.0;
             }else if(cmd[0]=='.'){
                 //quit
