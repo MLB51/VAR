@@ -491,8 +491,8 @@ void pc2map(std::string path){
 
 
 int main(){
-    //pc2map("/home/alu/Escritorio/VAR/P1/point_data/");
-    pc2map("/home/alu/Escritorio/VAR/P1/point_data_old_2/");
+    pc2map("/home/alu/Escritorio/VAR/P1/point_data/");
+    //pc2map("/home/alu/Escritorio/VAR/P1/point_data_old_2/");
     while (!viewer->wasStopped()) {
         viewer->spinOnce();
     }
