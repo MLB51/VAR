@@ -12,8 +12,11 @@
 #include <pcl/keypoints/harris_3d.h>
 #include <pcl/keypoints/iss_3d.h>
 #include <pcl/features/normal_3d.h> 
+#include <pcl/features/pfh.h>
 #include <pcl/features/fpfh.h>
 #include <pcl/features/3dsc.h>
+#include <pcl/features/shot.h>
+#include <pcl/features/vfh.h>
 
 #include <pcl/registration/sample_consensus_prerejective.h>
 #include <pcl/registration/registration.h>
@@ -28,20 +31,19 @@
 #include <algorithm>
 #include <Eigen/Dense>
 
-
-
 namespace fs = boost::filesystem;
 
-const int ICP_MAX_ITER=50;
-
+const std::string POINT_CLOUDS_PATH = "/home/alu/Escritorio/VAR/P1/point_data/";
+pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
 const float LEAF_SIZE = 0.1;
-
 const float NORMAL_RADIUS = 0.2;
+
 
 // KEYPOINTS //
 // HARRIS
 const float HARRIS_RADIUS = 0.1;
-const float HARRIS_THR = 0.5;
+const float HARRIS_THR = 0.3;
+
 // ISS
 const float ISS_THR_21 = 0.95;
 const float ISS_THR_32 = 0.95;
@@ -54,15 +56,24 @@ const int ISS_NUM_OF_THREADS = 4;
 // FPFH
 const float FPFH_RADIUS = 0.2;
 // 3DSC
-const float THREEDSC_RADIUS = 0.1;
+const float THREEDSC_RADIUS = 0.2;
+//SHOT
+const float SHOT_RADIUS = 0.2;
+// VHF
+const float VHF_RADIUS = 0.2;
+// PFH
+const float PFH_RADIUS = 0.2;
 
 // RANSAC
 const int RANSAC_MAX_ITER = 5000;
-const float RANSAC_MAX_DISTANCE = 0.05;
-const float RANSAC_TRANSFORMATION_EPSILON = 1e-8;
-const float RANSAC_FITNES_EPSILON = 1.0;
-const float RANSAC_OUTLIER_THR = 0.1;
-
+const int RANSAC_INIT_MAX_ITER = 1000;
+const float RANSAC_MAX_DISTANCE = 0.1; // distancia a partir de la que se considera outlier durante alg
+const float RANSAC_OUTLIER_THR = 0.15; // distancia a partir de la cual se considera outlier al final, cuando se calcula trnasformacion
+const float RANSAC_TRANSFORMATION_EPSILON = 1e-8; // epsilon que marca convergencia en matriz
+const float RANSAC_FITNES_EPSILON = 0.05; // epsilon que marca convergencia en distancias 
+const float RANSAC_MIN_SAMPLE_DIST = 0.1; // distancia minima entre samples
+const float RANSAC_SIMILARITY_THR = 0.9; // threshold de similitud entre descriptroes
+const float RANSAC_INLIER_RATE = 0.25; // % de inliers para considerar que ha ido bien
 
 void extractKeypoints_harris_and_fpfh(
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
@@ -84,9 +95,31 @@ void extractKeypoints_iss_and_3dsc(
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
         pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors
     );
+void extractKeypoints_iss_and_shot(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::SHOT352>::Ptr descriptors
+    );
 
+void extractKeypoints_iss_and_vhf(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::VFHSignature308>::Ptr descriptors
+    );
+
+void extractKeypoints_iss_and_pfh(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::PFHSignature125>::Ptr descriptors
+    );
+
+// change defintion to use other descriptors
 typedef pcl::FPFHSignature33 DescriptorType;
 //typedef pcl::ShapeContext1980 DescriptorType;
+//typedef pcl::SHOT352 DescriptorType;
+//typedef pcl::VFHSignature308 DescriptorType;
+//typedef pcl::PFHSignature125 DescriptorType;
+
 typedef void (*FunctionPtr)(
         pcl::PointCloud<pcl::PointXYZ>::Ptr,
         pcl::PointCloud<pcl::PointXYZI>::Ptr,
@@ -94,48 +127,23 @@ typedef void (*FunctionPtr)(
     );
 const FunctionPtr extraction_function = &extractKeypoints_iss_and_fpfh;
 
-
-
-/*
-Feature extraction: 
-    Harris 3D: pcl::HarrisKeypoint3D
-    ISS: pcl::ISSKeypoint3D
-    SIFT: pcl::SIFTKeypoint
-    Normal: pcl::NormalEstimation
-
-Descriptor Extraction:
-    FPH: pcl::FPFHEstimation
-    SHOT: pcl::SHOTEstimation
-    VFH: pcl::VFHEstimation
-    3DSC: pcl::ShapeContext3DEstimation
-
-*/
-
-
-
-pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Point Cloud Viewer"));
-
-void clearVisualization() {
-    viewer->removeAllPointClouds();
-    viewer->removeAllShapes();
-    viewer->removeAllCoordinateSystems();
-}
+//=================================================================================================================================
+//=================================================================================================================================
+//=================================================================================================================================
 
 void extractKeypoints_harris_and_fpfh(
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
         pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors
     ){
+    // Normals
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-
-
-    // Compute normals
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     ne.setInputCloud(cloud);
     ne.setRadiusSearch(NORMAL_RADIUS); 
     ne.compute(*normals);
 
-    // Harris Keypoint Detection
+    // Harris
     pcl::HarrisKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> harris;
     harris.setInputCloud(cloud);
     harris.setNormals(normals);
@@ -144,7 +152,7 @@ void extractKeypoints_harris_and_fpfh(
     harris.setThreshold(HARRIS_THR); // menor thr == mas kps
     harris.compute(*keypoints);
 
-    // FPFH Descriptor computation
+    // FPFH
     pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfh;
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::copyPointCloud(*keypoints, *keypointsXYZ); // FPFH requiere de una nube de puntos XYZ, no XYZI
@@ -156,34 +164,32 @@ void extractKeypoints_harris_and_fpfh(
     fpfh.compute(*descriptors);
 }
 
-
-
 void extractKeypoints_iss_and_fpfh(
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors
-) {
-    // Compute normals
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::FPFHSignature33>::Ptr descriptors
+    ) {
+    // Normals
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     ne.setInputCloud(cloud);
-    ne.setRadiusSearch(0.1);
+    ne.setRadiusSearch(NORMAL_RADIUS);
     ne.compute(*normals);
 
-    // ISS Keypoint Detection
+    // ISS
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> iss;
     iss.setInputCloud(cloud);
     iss.setSearchMethod(tree);
-    iss.setSalientRadius(ISS_SAL_RADIUS); 
-    iss.setNonMaxRadius(ISS_NON_MAX_RADIUS); 
-    iss.setThreshold21(ISS_THR_21); 
-    iss.setThreshold32(ISS_THR_32); 
-    iss.setMinNeighbors(ISS_MIN_NEIGHBORS); 
+    iss.setSalientRadius(ISS_SAL_RADIUS); // radio del area de las caracteristicas a detectar
+    iss.setNonMaxRadius(ISS_NON_MAX_RADIUS); // radio dentro del que se aplica supresion de no maximos
+    iss.setThreshold21(ISS_THR_21);  // thr para relacion entre autovalores 2 y 1
+    iss.setThreshold32(ISS_THR_32);  // thr para relacion entre autovalores 3 y 2
+    iss.setMinNeighbors(ISS_MIN_NEIGHBORS); // minimo de vecinos en el area de busqueda
     iss.setNumberOfThreads(ISS_NUM_OF_THREADS); 
     iss.compute(*keypoints);
 
-    // FPFH Descriptor computation
+    // FPFH
     pcl::FPFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::FPFHSignature33> fpfh;
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::copyPointCloud(*keypoints, *keypointsXYZ);
@@ -195,21 +201,19 @@ void extractKeypoints_iss_and_fpfh(
     fpfh.compute(*descriptors);
 }
 
-
-
 void extractKeypoints_iss_and_3dsc(
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
         pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors
     ) {
-    // Compute normals
+    // Normals
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     ne.setInputCloud(cloud);
     ne.setRadiusSearch(NORMAL_RADIUS);
     ne.compute(*normals);
 
-    // ISS Keypoint Detection
+    // ISS
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> iss;
     iss.setInputCloud(cloud);
@@ -222,31 +226,39 @@ void extractKeypoints_iss_and_3dsc(
     iss.setNumberOfThreads(ISS_NUM_OF_THREADS); 
     iss.compute(*keypoints);
 
+    // Normals for keypoints
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*keypoints, *keypointsXYZ);
+    pcl::PointCloud<pcl::Normal>::Ptr kps_normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_kps;
+    ne_kps.setInputCloud(keypointsXYZ);
+    ne_kps.setRadiusSearch(NORMAL_RADIUS); 
+    ne_kps.compute(*kps_normals);
 
-    // 3DSC Descriptor computation
-    pcl::search::KdTree<pcl::PointXYZI>::Ptr desc_tree(new pcl::search::KdTree<pcl::PointXYZI>);
-    pcl::ShapeContext3DEstimation<pcl::PointXYZI, pcl::Normal, pcl::ShapeContext1980> sc3d;
-    sc3d.setInputCloud(keypoints);
-    sc3d.setInputNormals(normals);
+    // 3DSC 
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr desc_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ShapeContext3DEstimation<pcl::PointXYZ, pcl::Normal, pcl::ShapeContext1980> sc3d;
+    sc3d.setInputCloud(keypointsXYZ);
+    sc3d.setInputNormals(kps_normals);
+    sc3d.setSearchSurface(keypointsXYZ); 
     sc3d.setSearchMethod(desc_tree);
     sc3d.setRadiusSearch(THREEDSC_RADIUS); 
     sc3d.compute(*descriptors);
 }
-
 
 void extractKeypoints_harris_and_3dsc(
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
         pcl::PointCloud<pcl::ShapeContext1980>::Ptr descriptors
     ) {
-    // Compute normals
+    // Normals
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
     ne.setInputCloud(cloud);
     ne.setRadiusSearch(NORMAL_RADIUS);
     ne.compute(*normals);
 
-    // Harris Keypoint Detection
+    // Harris
     pcl::HarrisKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> harris;
     harris.setInputCloud(cloud);
     harris.setNormals(normals);
@@ -255,155 +267,240 @@ void extractKeypoints_harris_and_3dsc(
     harris.setThreshold(HARRIS_THR); // menor thr == mas kps
     harris.compute(*keypoints);
 
-    // Compute normals for keypoints
+    // Normals for keypoints
     pcl::PointCloud<pcl::Normal>::Ptr kps_normals(new pcl::PointCloud<pcl::Normal>);
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_kps;
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::copyPointCloud(*keypoints, *keypointsXYZ);
     ne_kps.setInputCloud(keypointsXYZ);
-    ne_kps.setRadiusSearch(0.1); 
+    ne_kps.setRadiusSearch(NORMAL_RADIUS); 
     ne_kps.compute(*kps_normals);
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr search_surface(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::copyPointCloud(*cloud, *search_surface);
-
-    // 3DSC Descriptor computation
-    pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
-    pcl::ShapeContext3DEstimation<pcl::PointXYZI, pcl::Normal, pcl::ShapeContext1980> sc3d;
-    sc3d.setInputCloud(search_surface);
-    //sc3d.setInputKeypoints(keypoints);
-    sc3d.setInputNormals(normals);
-    sc3d.setSearchSurface(search_surface); 
+    // 3DSC
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ShapeContext3DEstimation<pcl::PointXYZ, pcl::Normal, pcl::ShapeContext1980> sc3d;
+    sc3d.setInputCloud(keypointsXYZ);
+    sc3d.setInputNormals(kps_normals);
     sc3d.setSearchMethod(tree);
     sc3d.setRadiusSearch(THREEDSC_RADIUS); 
     sc3d.compute(*descriptors);
 }
 
+void extractKeypoints_iss_and_shot(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::SHOT352>::Ptr descriptors
+    ) {
+
+    // ISS
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> iss;
+    iss.setInputCloud(cloud);
+    iss.setSearchMethod(tree);
+    iss.setSalientRadius(ISS_SAL_RADIUS); 
+    iss.setNonMaxRadius(ISS_NON_MAX_RADIUS); 
+    iss.setThreshold21(ISS_THR_21); 
+    iss.setThreshold32(ISS_THR_32); 
+    iss.setMinNeighbors(ISS_MIN_NEIGHBORS); 
+    iss.setNumberOfThreads(ISS_NUM_OF_THREADS); 
+    iss.compute(*keypoints);
+
+    // Normals for keypoints
+    pcl::PointCloud<pcl::Normal>::Ptr kps_normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_kps;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*keypoints, *keypointsXYZ);
+    ne_kps.setInputCloud(keypointsXYZ);
+    ne_kps.setRadiusSearch(NORMAL_RADIUS); 
+    ne_kps.compute(*kps_normals);
+
+    // SHOT
+    pcl::SHOTEstimation<pcl::PointXYZ, pcl::Normal, pcl::SHOT352> shot;
+    shot.setInputCloud(keypointsXYZ);
+    shot.setInputNormals(kps_normals);
+    shot.setRadiusSearch(SHOT_RADIUS);
+    shot.compute(*descriptors);
+}
+
+void extractKeypoints_iss_and_vhf(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::VFHSignature308>::Ptr descriptors
+    ) {
+
+    // ISS
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> iss;
+    iss.setInputCloud(cloud);
+    iss.setSearchMethod(tree);
+    iss.setSalientRadius(ISS_SAL_RADIUS); 
+    iss.setNonMaxRadius(ISS_NON_MAX_RADIUS); 
+    iss.setThreshold21(ISS_THR_21); 
+    iss.setThreshold32(ISS_THR_32); 
+    iss.setMinNeighbors(ISS_MIN_NEIGHBORS); 
+    iss.setNumberOfThreads(ISS_NUM_OF_THREADS); 
+    iss.compute(*keypoints);
+
+    // Normals for keypoints
+    pcl::PointCloud<pcl::Normal>::Ptr kps_normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne_kps;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*keypoints, *keypointsXYZ);
+    ne_kps.setInputCloud(keypointsXYZ);
+    ne_kps.setRadiusSearch(NORMAL_RADIUS); 
+    ne_kps.compute(*kps_normals);
+
+    // VFH
+    pcl::VFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::VFHSignature308> vfh;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr dsc_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    vfh.setInputCloud(keypointsXYZ);
+    vfh.setInputNormals(kps_normals);
+    vfh.setSearchMethod(dsc_tree);
+    vfh.setRadiusSearch(VHF_RADIUS);
+    vfh.compute(*descriptors);
+
+}
+
+void extractKeypoints_iss_and_pfh(
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
+        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints,
+        pcl::PointCloud<pcl::PFHSignature125>::Ptr descriptors
+    ) {
+    // Normals
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
+    ne.setInputCloud(cloud);
+    ne.setRadiusSearch(NORMAL_RADIUS);
+    ne.compute(*normals);
+
+    // ISS
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::ISSKeypoint3D<pcl::PointXYZ, pcl::PointXYZI> iss;
+    iss.setInputCloud(cloud);
+    iss.setSearchMethod(tree);
+    iss.setSalientRadius(ISS_SAL_RADIUS); 
+    iss.setNonMaxRadius(ISS_NON_MAX_RADIUS); 
+    iss.setThreshold21(ISS_THR_21); 
+    iss.setThreshold32(ISS_THR_32); 
+    iss.setMinNeighbors(ISS_MIN_NEIGHBORS); 
+    iss.setNumberOfThreads(ISS_NUM_OF_THREADS); 
+    iss.compute(*keypoints);
+
+    // PFH
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keypointsXYZ(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::copyPointCloud(*keypoints, *keypointsXYZ);
+    pcl::PFHEstimation<pcl::PointXYZ, pcl::Normal, pcl::PFHSignature125> pfh;
+    pfh.setInputCloud(keypointsXYZ);
+    pfh.setInputNormals(normals);
+    pfh.setSearchSurface(cloud);
+    pfh.setSearchMethod(tree);
+    pfh.setRadiusSearch(PFH_RADIUS); // radio del area que se analiza
+    pfh.compute(*descriptors);
+
+}
 //=================================================================================================================================
 //=================================================================================================================================
 //=================================================================================================================================
 
-/*Eigen::Matrix4f pairKeypoints_BAD(
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_source,
-    pcl::PointCloud<DescriptorType>::Ptr descriptors_source,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_target,
-    pcl::PointCloud<DescriptorType>::Ptr descriptors_target
-) {
-    pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZI>::Ptr ransac(new pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZI>);
-    ransac->setInputSource(keypoints_source);
-    ransac->setInputTarget(keypoints_target);
-    ransac->setInlierThreshold(0.05); // Adjust this threshold based on your application
-    ransac->setMaximumIterations(1000); // Adjust maximum iterations as needed
-
-    // Set correspondences based on descriptors
-    pcl::registration::CorrespondenceEstimation<DescriptorType, DescriptorType>::Ptr correspondence_estimation(new pcl::registration::CorrespondenceEstimation<DescriptorType, DescriptorType>);
-    correspondence_estimation->setInputSource(descriptors_source);
-    correspondence_estimation->setInputTarget(descriptors_target);
-    pcl::CorrespondencesPtr correspondences(new pcl::Correspondences());
-    correspondence_estimation->determineCorrespondences(*correspondences);
-
-    // Apply RANSAC to estimate the transformation
-    ransac->setInputCorrespondences(correspondences);
-    ransac->setInputTransformation(Eigen::Matrix4f::Identity()); // Initial transformation
-
-    // Perform registration
-    pcl::registration::TransformationEstimationSVD<pcl::PointXYZI, pcl::PointXYZI> transformation_estimation;
-    Eigen::Matrix4f transformation_matrix;
-    transformation_estimation.estimateRigidTransformation(*keypoints_source, *keypoints_target, *ransac->getInliers(), transformation_matrix);
-
-    return transformation_matrix;
-
-}*/
-
-
-Eigen::Matrix4f pairKeypoints(
+Eigen::Matrix4f pairKeypoints_with_prealignment(
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_source,
         pcl::PointCloud<DescriptorType>::Ptr descriptors_source,
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_target,
         pcl::PointCloud<DescriptorType>::Ptr descriptors_target
     ){
-    // Initialize SampleConsensusInitialAlignment
-    pcl::SampleConsensusInitialAlignment<pcl::PointXYZI, pcl::PointXYZI, pcl::FPFHSignature33> sac_ia;
+    // applies prealignment for RANSAC
+    pcl::SampleConsensusInitialAlignment<pcl::PointXYZI, pcl::PointXYZI, DescriptorType> sac_ia;
     sac_ia.setInputSource(keypoints_source);
     sac_ia.setInputTarget(keypoints_target);
     sac_ia.setSourceFeatures(descriptors_source);
     sac_ia.setTargetFeatures(descriptors_target);
-
-    // Set parameters for SAC-IA
-    sac_ia.setMinSampleDistance(0.05); // Minimum distance between samples
-    sac_ia.setMaxCorrespondenceDistance(0.1); // Maximum correspondence distance (where correspondences are ignored)
-    sac_ia.setMaximumIterations(500); // Maximum number of iterations
-    sac_ia.setEuclideanFitnessEpsilon(1e-5); // Fitness epsilon (convergence criterion)
+    sac_ia.setMinSampleDistance(RANSAC_MIN_SAMPLE_DIST);
+    sac_ia.setMaxCorrespondenceDistance(RANSAC_MAX_DISTANCE);
+    sac_ia.setMaximumIterations(RANSAC_INIT_MAX_ITER);
+    sac_ia.setEuclideanFitnessEpsilon(RANSAC_FITNES_EPSILON);
     sac_ia.align(*keypoints_source);
-
-    // Obtain the initial transformation from SAC-IA
     Eigen::Matrix4f initial_transformation = sac_ia.getFinalTransformation();
 
-    // Apply SampleConsensusPrerejective using the initial transformation
-    pcl::SampleConsensusPrerejective<pcl::PointXYZI, pcl::PointXYZI, pcl::FPFHSignature33> sac_pr;
+    // applies RANSAC using the initial transformation
+    pcl::SampleConsensusPrerejective<pcl::PointXYZI, pcl::PointXYZI, DescriptorType> sac_pr;
     sac_pr.setInputSource(keypoints_source);
     sac_pr.setInputTarget(keypoints_target);
     sac_pr.setSourceFeatures(descriptors_source);
     sac_pr.setTargetFeatures(descriptors_target);
-    sac_pr.setMaximumIterations(10000); // Maximum number of iterations
-    sac_pr.setCorrespondenceRandomness(20); // Number of randomly selected correspondences to use
-    sac_pr.setSimilarityThreshold(0.1); // Threshold for nearest neighbor clustering
-    sac_pr.setMaxCorrespondenceDistance(0.1); // Maximum correspondence distance
-    sac_pr.setInlierFraction(0.25); // Required inlier fraction for a successful alignment
-    sac_pr.align(*keypoints_source);
-    return sac_pr.getFinalTransformation();
+    sac_pr.setMaximumIterations(RANSAC_MAX_ITER);
+    sac_pr.setSimilarityThreshold(RANSAC_SIMILARITY_THR); // threshold de similitud entre descriptores
+    sac_pr.setMaxCorrespondenceDistance(RANSAC_MAX_DISTANCE); // distancia a partir de la que se considera outlier durante alg
+    sac_pr.setInlierFraction(RANSAC_INLIER_RATE); // % de inliers necesarios para considerar que ha ido bien
+    sac_pr.setTransformationEpsilon(RANSAC_TRANSFORMATION_EPSILON); // epsilon de la transformacion a partir del cual converge
+    sac_pr.setEuclideanFitnessEpsilon(RANSAC_FITNES_EPSILON); // epsilon de las distancias a partir del cual converge
+    // distancia a partir de la cual se considera outlier al final, cuando se calcula transformacion
+    sac_pr.setRANSACOutlierRejectionThreshold(RANSAC_OUTLIER_THR); 
     
-    //Eigen::Matrix4f refined_transformation = sac_pr.getFinalTransformation();
-    //Eigen::Matrix4f final_transformation = refined_transformation * initial_transformation;
-    //return final_transformation;
+    sac_pr.align(*keypoints_source);
+    if (sac_pr.hasConverged()) {
+        std::cout << "\033[1;32mSUCCES in alignment\033[0m" << std::endl;
+    } else {
+        // Alignment failed
+        std::cout << "\033[1;31mFAILED alignment\033[0m" << std::endl;
+    }
+    Eigen::Matrix4f transformation = sac_pr.getFinalTransformation();
+    return transformation * initial_transformation;
 }
-// source = actual, target = previous
-Eigen::Matrix4f pairKeypoints_HUH(
+
+Eigen::Matrix4f pairKeypoints_without_prealignment(
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_source,
         pcl::PointCloud<DescriptorType>::Ptr descriptors_source,
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_target,
         pcl::PointCloud<DescriptorType>::Ptr descriptors_target
     ){
-    pcl::SampleConsensusPrerejective<pcl::PointXYZI, pcl::PointXYZI, DescriptorType> align;
-
-    align.setInputSource(keypoints_source);
-    align.setSourceFeatures(descriptors_source);
-    align.setInputTarget(keypoints_target);
-    align.setTargetFeatures(descriptors_target);
-
-    align.setMaximumIterations(RANSAC_MAX_ITER);// 1000
-    align.setMaxCorrespondenceDistance(RANSAC_MAX_DISTANCE); // 0.1
-    align.setTransformationEpsilon(RANSAC_TRANSFORMATION_EPSILON); // 1e-8
-    align.setEuclideanFitnessEpsilon(RANSAC_FITNES_EPSILON); // 1
-    align.setRANSACOutlierRejectionThreshold(RANSAC_OUTLIER_THR); // 0.1
-
-    pcl::PointCloud<pcl::PointXYZI>::Ptr aligned(new pcl::PointCloud<pcl::PointXYZI>);
-    align.align(*aligned);
-
-    if (align.hasConverged()) {
-        Eigen::Matrix4f transformation = align.getFinalTransformation();
-        return transformation;
+    pcl::SampleConsensusPrerejective<pcl::PointXYZI, pcl::PointXYZI, DescriptorType> sac_pr;
+    sac_pr.setInputSource(keypoints_source);
+    sac_pr.setInputTarget(keypoints_target);
+    sac_pr.setSourceFeatures(descriptors_source);
+    sac_pr.setTargetFeatures(descriptors_target);
+    sac_pr.setMaximumIterations(RANSAC_MAX_ITER);
+    sac_pr.setSimilarityThreshold(RANSAC_SIMILARITY_THR); // threshold de similitud entre descriptores
+    sac_pr.setMaxCorrespondenceDistance(RANSAC_MAX_DISTANCE); // distancia a partir de la que se considera outlier durante alg
+    sac_pr.setInlierFraction(RANSAC_INLIER_RATE); // % de inliers necesarios para considerar que ha ido bien
+    sac_pr.setTransformationEpsilon(RANSAC_TRANSFORMATION_EPSILON); // epsilon de la transformacion a partir del cual converge
+    sac_pr.setEuclideanFitnessEpsilon(RANSAC_FITNES_EPSILON); // epsilon de las distancias a partir del cual converge
+    // distancia a partir de la cual se considera outlier al final, cuando se calcula transformacion
+    sac_pr.setRANSACOutlierRejectionThreshold(RANSAC_OUTLIER_THR); 
+    
+    sac_pr.align(*keypoints_source);
+    if (sac_pr.hasConverged()) {
+        std::cout << "\033[1;32mSUCCES in alignment\033[0m" << std::endl;
     } else {
         // Alignment failed
-        std::cout << "FAILED alignment" << std::endl;
-        return Eigen::Matrix4f::Identity();
+        std::cout << "\033[1;31mFAILED alignment\033[0m" << std::endl;
     }
+    Eigen::Matrix4f transformation = sac_pr.getFinalTransformation();
+    return transformation;
 }
 
-void pc2map(std::string path){
+//=================================================================================================================================
+//=================================================================================================================================
+//=================================================================================================================================
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr previous_kps(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::PointCloud<DescriptorType>::Ptr previous_dscs(new pcl::PointCloud<DescriptorType>);
-    
+void clearVisualization() {
+    viewer->removeAllPointClouds();
+    viewer->removeAllShapes();
+    viewer->removeAllCoordinateSystems();
+}
+void pc2map(std::string path){
+    // init Tt and Map
     Eigen::Matrix4f total_transformation = Eigen::Matrix4f::Identity();
-    std::cout << total_transformation << std::endl;
     pcl::PointCloud<pcl::PointXYZ>::Ptr map(new pcl::PointCloud<pcl::PointXYZ>);
     
+    pcl::PointCloud<pcl::PointXYZI>::Ptr previous_kps(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<DescriptorType>::Ptr previous_dscs(new pcl::PointCloud<DescriptorType>);
+
     // gets all the files paths
     std::vector<fs::path> files;
     for (const auto& entry : fs::directory_iterator(path)) {
         files.push_back(entry.path());
     }
+
     // sorts the files alphabetically as they are saved like cloud_<i>
     std::sort(files.begin(), files.end());
 
@@ -412,34 +509,28 @@ void pc2map(std::string path){
         std::cout << std::endl << entry << std::endl;
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-
         if (pcl::io::loadPCDFile<pcl::PointXYZ> (entry.string(), *cloud) == -1){
             std::cerr << "Couldn't read file " << entry.string() << std::endl;
             return;
         }
 
         std::cout << "Loaded cloud with " << cloud->width * cloud->height << " data points" <<std::endl;
-        for (const auto& point : *cloud) {
-            if (!pcl::isFinite(point)) {
-                std::cout << "Found invalid point in cloud: (" << point.x << ", " << point.y << ", " << point.z << "), intensity: " << std::endl;
-            }
-        }
 
-        // pcl::PassThrough<pcl::PointXYZ> pass;
+        // Filtering of the floor makes it worse so it's not used
+        /*// pcl::PassThrough<pcl::PointXYZ> pass;
         // pass.setInputCloud(cloud);
         // pass.setFilterFieldName("y");
-        // pass.setFilterLimits(-10, 0); // filters the floor by deleting any y value above 0.114
-        // pass.filter(*cloud);
-
-
+        // pass.setFilterLimits(-10, 0); // filters every point with y above 0, as this represents the floor
+        // pass.filter(*cloud);*/
+ 
         // keypoints are extracted
         pcl::PointCloud<pcl::PointXYZI>::Ptr kps(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::PointCloud<DescriptorType>::Ptr dscs(new pcl::PointCloud<DescriptorType>);
         
         extraction_function(cloud, kps, dscs);
-
         std::cout << "Number of keypoints: " << kps->size() << std::endl;
         std::cout << "Number of descriptors: " << dscs->size() << std::endl;
+
         for (const auto& point : *kps) {
             if (!pcl::isFinite(point)) {
                 std::cout << "Found invalid point in keypoints: (" << point.x << ", " << point.y << ", " << point.z << "), intensity: " << std::endl;
@@ -447,12 +538,8 @@ void pc2map(std::string path){
         }
         if(i>0){
             std::cout << "Pairing... " << std::endl;
-
-            // the i matrix is calculated on pairKeypoints and then multiplied by the total
-            //total_transformation = pairKeypoints(kps, dscs, previous_kps, previous_dscs) * total_transformation; // original: Ti*Tt - mal
-            //total_transformation = pairKeypoints(previous_kps, previous_dscs, kps, dscs) * total_transformation; // swap source y target
-            total_transformation = total_transformation * pairKeypoints(kps, dscs, previous_kps, previous_dscs); // Tt * Ti 
-            //total_transformation = total_transformation * pairKeypoints(previous_kps, previous_dscs, kps, dscs); // swap source y target
+            Eigen::Matrix4f transformation_i = pairKeypoints_without_prealignment(kps, dscs, previous_kps, previous_dscs);
+            total_transformation = total_transformation * transformation_i; // Tt * Ti 
 
             // the total is applied to the whole cloud
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_transformed(new pcl::PointCloud<pcl::PointXYZ>);
@@ -461,11 +548,10 @@ void pc2map(std::string path){
             // the transformed cloud is added to the map
             *map = *map + *cloud_transformed; 
 
-            //std::cout << total_transformation << std::endl;
             std::cout << "-- MAP now contains " << map->size() << " points.";
             pcl::VoxelGrid<pcl::PointXYZ> vg;
-            vg.setInputCloud(map);
             vg.setLeafSize(LEAF_SIZE,LEAF_SIZE,LEAF_SIZE);
+            vg.setInputCloud(map);
             vg.filter(*map); 
             std::cout << " Reduced to " <<  map->size() << " points." << std::endl;
 
@@ -482,18 +568,11 @@ void pc2map(std::string path){
         i++;
         viewer->spinOnce();
     }
-        
-    // 10: fin para
-    // 11: devolver M
-
 }
 
-
-
 int main(){
-    pc2map("/home/alu/Escritorio/VAR/P1/point_data/");
-    //pc2map("/home/alu/Escritorio/VAR/P1/point_data_old_2/");
+    pc2map(POINT_CLOUDS_PATH);
     while (!viewer->wasStopped()) {
-        viewer->spinOnce();
+        viewer->spinOnce(); //loop until window is closed
     }
 }

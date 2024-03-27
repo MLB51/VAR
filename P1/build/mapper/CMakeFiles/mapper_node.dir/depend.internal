@@ -351,10 +351,18 @@ mapper/CMakeFiles/mapper_node.dir/src/mapper.cpp.o
  /usr/include/pcl-1.10/pcl/features/impl/integral_image2D.hpp
  /usr/include/pcl-1.10/pcl/features/impl/integral_image_normal.hpp
  /usr/include/pcl-1.10/pcl/features/impl/normal_3d.hpp
+ /usr/include/pcl-1.10/pcl/features/impl/pfh.hpp
+ /usr/include/pcl-1.10/pcl/features/impl/shot.hpp
+ /usr/include/pcl-1.10/pcl/features/impl/shot_lrf.hpp
+ /usr/include/pcl-1.10/pcl/features/impl/vfh.hpp
  /usr/include/pcl-1.10/pcl/features/integral_image2D.h
  /usr/include/pcl-1.10/pcl/features/integral_image_normal.h
  /usr/include/pcl-1.10/pcl/features/normal_3d.h
+ /usr/include/pcl-1.10/pcl/features/pfh.h
  /usr/include/pcl-1.10/pcl/features/pfh_tools.h
+ /usr/include/pcl-1.10/pcl/features/shot.h
+ /usr/include/pcl-1.10/pcl/features/shot_lrf.h
+ /usr/include/pcl-1.10/pcl/features/vfh.h
  /usr/include/pcl-1.10/pcl/filters/boost.h
  /usr/include/pcl-1.10/pcl/filters/extract_indices.h
  /usr/include/pcl-1.10/pcl/filters/filter.h

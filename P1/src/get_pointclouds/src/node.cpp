@@ -9,16 +9,14 @@
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr visu_pc (new pcl::PointCloud<pcl::PointXYZRGB>);
 int cloud_counter=0;
-void simpleVis ()
-{
+
+void simpleVis(){
   	pcl::visualization::CloudViewer viewer ("Simple Cloud Viewer");
 	while(!viewer.wasStopped())
 	{
 		viewer.showCloud (visu_pc);
-		boost::this_thread::sleep(boost::posix_time::milliseconds(500));
-		
+		boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 	}
-
 }
 
 void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg){
@@ -44,20 +42,12 @@ void callback(const pcl::PointCloud<pcl::PointXYZRGB>::ConstPtr& msg){
 	}
 }
 		
-
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv){
 	ros::init(argc, argv, "sub_pcl");
 	ros::NodeHandle nh;
-	// aqui lo que hace es ir leyendo y printeando en pantalla
 	ros::Subscriber sub = nh.subscribe<pcl::PointCloud<pcl::PointXYZRGB> >("/camera/depth/points", 1, callback);
-
-	// aqui se podria crear otro thread que en vez de mostrar construya el mapa
 	boost::thread t(simpleVis);
-
-	while(ros::ok())
-	{
+	while(ros::ok()){
 		ros::spinOnce();
 	}
-
 }
