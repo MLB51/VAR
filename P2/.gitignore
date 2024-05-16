@@ -1,0 +1,4 @@
+*.png
+
+git config --global user.name "MLB_51"
+git config --global user.email "mlb51@gcloud.ua.es"
